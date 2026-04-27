@@ -31,7 +31,7 @@ on:
       npm-bsaweb-registry-url:
         description: "GitLab npm registry URL for @bsaweb scoped packages."
         type: string
-        default: "https://gitlab.bsa-web.fr/api/v4/packages/npm/"
+        default: ""
     secrets:
       COMPOSER_AUTH_JSON:
         description: "Optional JSON for private Composer registries (standard auth.json

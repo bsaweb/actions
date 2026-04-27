@@ -6,9 +6,10 @@ on:
   workflow_call:
     inputs:
       mirror_exclude_rx_from:
-        description: "Path to the regex exclude list inside the artifact (one pattern per line)."
+        description: "Path to the regex exclude list inside the artifact (one pattern
+          per line)."
         type: string
-        default: ".bsaweb/lftp-exclude-regex.txt"
+        default: ".bsaweb/ci-cd/lftp-exclude-regex.txt"
       mirror_remote_path:
         description: "Remote path on the server (e.g. /httpdocs)."
         type: string
@@ -27,7 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     # `github` context: ref is always set for the run (works inside reusable workflows).
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
-    name: Deploy to ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    name: Deploy to ${{ github.ref == 'refs/heads/main' && 'production' || 'staging'
+      }}
     steps:
       - name: Download build artifact
         uses: actions/download-artifact@v4
