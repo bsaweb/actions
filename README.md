@@ -7,44 +7,25 @@
 | File | Role |
 | --- | --- |
 | [`wordpress-bedrock-build.yml`](.github/workflows/wordpress-bedrock-build.yml) | `composer install`, optional `npm ci` + `npm run build`, upload an artifact (default `bedrock-build`). |
-| [`lftp-deploy.yml`](.github/workflows/lftp-deploy.yml) | Download artifact, `lftp` mirror to FTPS, regex-based excludes via `mirror_exclude_rx_from`. |
+| [`lftp-deploy.yml`](.github/workflows/lftp-deploy.yml) | `lftp` mirror. The job uses `github.ref`: branch **main** → **production**, any other ref → **staging** (name your [Environments](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment) accordingly). `LFTP_*` secrets live on each Environment. |
 
-**Pin a ref** in the caller (`@v1`, `@<sha>`, or branch). Prefer **release tags** for production.
+**Pin a ref** in the caller (`@v0.1.0`, `@<sha>`, or branch). Prefer **release tags** for production.
 
 ## Example (consumer repo)
 
-Add `.github/workflows/deploy.yml` in a Bedrock project:
+`mirror_remote_path` and optional exclude path are the usual `with` values:
 
 ```yaml
-on:
-  push:
-    branches: [ develop, main ]
-
-# Avoid overlapping deploys.
-concurrency:
-  group: deploy-${{ github.ref }}-${{ github.workflow }}
-  cancel-in-progress: true
-
-jobs:
-  build:
-    uses: bsaweb/actions/.github/workflows/wordpress-bedrock-build.yml@v1
-    secrets:
-      COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
-
-  deploy_staging:
-    if: github.ref == 'refs/heads/develop'
+  deploy:
     needs: [ build ]
-    uses: bsaweb/actions/.github/workflows/lftp-deploy.yml@v1
+    uses: bsaweb/actions/.github/workflows/lftp-deploy.yml@v0.1.0
     with:
-      environment: staging
       mirror_remote_path: /httpdocs
-    secrets:
-      site: ${{ secrets.STAGING_FTP_HOST }}
-      user: ${{ secrets.STAGING_FTP_LOGIN }}
-      password: ${{ secrets.STAGING_FTP_PASSWORD }}
 ```
 
-`lftp` credentials must be stored as repository or environment secrets. Reusable workflows in **private** other repos are allowed if [this repository allows access to workflows from private callers](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#allowing-access-to-components-in-a-private-repository).
+In **Settings → Environments**, add **staging** and **production** with `LFTP_HOST`, `LFTP_USER`, `LFTP_PASSWORD` (same names, different values per environment).
+
+`lftp` credentials must be stored as environment secrets. Reusable workflows in **private** other repos are allowed if [this repository allows access to workflows from private callers](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#allowing-access-to-components-in-a-private-repository).
 
 Set `mirror_exclude_rx_from` if your regex exclude file is not at the default path in `lftp-deploy`.
 
@@ -52,9 +33,8 @@ Set `mirror_exclude_rx_from` if your regex exclude file is not at the default pa
 
 | Secret | Use |
 | --- | --- |
-| `COMPOSER_AUTH` | JSON for private Composer (same as local `auth.json` / `COMPOSER_AUTH` env). |
-| `STAGING_FTP_HOST`, `STAGING_FTP_LOGIN`, `STAGING_FTP_PASSWORD` (or your naming) | Map to `site` / `user` / `password` in the deploy workflow. |
-| `PRODUCTION_FTP_*` | Production, etc. |
+| `COMPOSER_AUTH` | JSON for private Composer (repo or org secret, often the same in all envs). |
+| `LFTP_HOST`, `LFTP_USER`, `LFTP_PASSWORD` | FTP/FTPS target; set per **Environment** (same names, different values per `staging` / `production` / …). |
 
 ## Notes (v1)
 

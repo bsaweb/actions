@@ -1,12 +1,10 @@
 # Reusable workflow: deploy a build artifact via lftp/FTPS mirror to a remote path.
 # In the caller: `needs: [ build ]` and the same `artifact-name` as wordpress-bedrock-build.
+# GitHub Environment is derived from the branch: `main` → production, any other ref → staging.
+# Create `production` and `staging` Environments on the repo; put LFTP_HOST, LFTP_USER, LFTP_PASSWORD on each.
 on:
   workflow_call:
     inputs:
-      environment:
-        description: "Label for the job name (e.g. staging). Optionally map to a GitHub Environment in the caller."
-        type: string
-        required: true
       mirror_exclude_rx_from:
         description: "Path to the regex exclude list inside the artifact (one pattern per line)."
         type: string
@@ -23,18 +21,13 @@ on:
         description: "lftp mirror --parallel N."
         type: number
         default: 5
-    secrets:
-      site:
-        required: true
-      user:
-        required: true
-      password:
-        required: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Deploy to ${{ inputs.environment }}
+    # `github` context: ref is always set for the run (works inside reusable workflows).
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    name: Deploy to ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
     steps:
       - name: Download build artifact
         uses: actions/download-artifact@v4
@@ -51,9 +44,9 @@ jobs:
           EXFILE: ${{ inputs.mirror_exclude_rx_from }}
           REMOTE: ${{ inputs.mirror_remote_path }}
           PAR: ${{ inputs.parallel }}
-          RHOST: ${{ secrets.site }}
-          RUSER: ${{ secrets.user }}
-          RPASS: ${{ secrets.password }}
+          RHOST: ${{ secrets.LFTP_HOST }}
+          RUSER: ${{ secrets.LFTP_USER }}
+          RPASS: ${{ secrets.LFTP_PASSWORD }}
         run: |
           set -euo pipefail
           {

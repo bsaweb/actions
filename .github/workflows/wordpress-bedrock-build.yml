@@ -20,16 +20,26 @@ on:
         type: string
         default: "--no-dev --prefer-dist --no-interaction --optimize-autoloader"
       run-npm:
-        description: "Run npm ci and npm run build if package.json exists at working-directory."
+        description: "Run npm ci and npm run build if package.json exists at
+          working-directory."
         type: boolean
         default: true
       artifact-name:
         description: "Uploaded artifact name for deploy jobs to download."
         type: string
         default: "bedrock-build"
+      npm-bsaweb-registry-url:
+        description: "GitLab npm registry URL for @bsaweb scoped packages."
+        type: string
+        default: "https://gitlab.bsa-web.fr/api/v4/packages/npm/"
     secrets:
-      COMPOSER_AUTH:
-        description: "Optional JSON for private Composer registries (standard COMPOSER_AUTH format)."
+      COMPOSER_AUTH_JSON:
+        description: "Optional JSON for private Composer registries (standard auth.json
+          format)."
+        required: false
+      NPM_BSAWEB_REGISTRY_TOKEN:
+        description: "GitLab deploy token (read_package_registry) for @bsaweb scoped
+          packages."
         required: false
 
 jobs:
@@ -64,7 +74,7 @@ jobs:
 
       - name: Composer install
         env:
-          COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
+          COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH_JSON }}
         run: composer install ${{ inputs.composer-install-args }}
         working-directory: ${{ inputs.working-directory }}
 
@@ -75,6 +85,16 @@ jobs:
           node-version: ${{ inputs.node-version }}
           cache: npm
           cache-dependency-path: ${{ format('{0}/package-lock.json', inputs.working-directory) }}
+
+      - name: Configure @bsaweb npm registry
+        if: inputs.run-npm && inputs.npm-bsaweb-registry-url != ''
+        env:
+          REGISTRY_URL: ${{ inputs.npm-bsaweb-registry-url }}
+          TOKEN: ${{ secrets.NPM_BSAWEB_REGISTRY_TOKEN }}
+        run: |
+          REGISTRY_HOST="${REGISTRY_URL#https:}"
+          printf '@bsaweb:registry=%s\n//%s:_authToken=%s\n' \
+            "$REGISTRY_URL" "$REGISTRY_HOST" "$TOKEN" >> ~/.npmrc
 
       - name: npm ci and build
         if: inputs.run-npm
