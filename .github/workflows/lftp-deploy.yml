@@ -1,0 +1,84 @@
+# Reusable workflow: deploy build artifact via lftp/FTPS mirror (aligned with GitLab lftp deploy component).
+# In the caller: `needs: [ build ]` and the same `artifact-name` as wordpress-bedrock-build.
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Label for the job name (e.g. staging, staging — use a GitHub
+          Environment in the caller if needed)."
+        type: string
+        required: true
+      mirror_exclude_rx_from:
+        description: "Path to regex exclude file inside the artifact (GitLab:
+          mirror_exclude_rx_from)."
+        type: string
+        default: ".bsaweb/gitlab-ci/lftp-exclude-regex.txt"
+      mirror_remote_path:
+        description: "Remote path on the server (e.g. /httpdocs)."
+        type: string
+        required: true
+      artifact-name:
+        description: "Artifact to download; must match wordpress-bedrock-build."
+        type: string
+        default: "bedrock-build"
+      parallel:
+        description: "lftp mirror --parallel N."
+        type: number
+        default: 5
+    secrets:
+      site:
+        required: true
+      user:
+        required: true
+      password:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to ${{ inputs.environment }}
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: _deploy
+
+      - name: Install lftp
+        run: sudo apt-get update && sudo apt-get install -y lftp
+
+      - name: Mirror to FTPS
+        working-directory: _deploy
+        env:
+          EXFILE: ${{ inputs.mirror_exclude_rx_from }}
+          REMOTE: ${{ inputs.mirror_remote_path }}
+          PAR: ${{ inputs.parallel }}
+          RHOST: ${{ secrets.site }}
+          RUSER: ${{ secrets.user }}
+          RPASS: ${{ secrets.password }}
+        run: |
+          set -euo pipefail
+          {
+            echo "set net:reconnect-interval-base 5"
+            echo "set net:max-retries 2"
+            echo "set ftps:initial-prot ''"
+            echo "set ftp:ssl-force true"
+            echo "set ftp:ssl-protect-data true"
+            echo "set ssl:verify-certificate no"
+            echo "set sftp:auto-confirm yes"
+            echo -n "mirror"
+            if [ -f "$EXFILE" ]; then
+              while IFS= read -r line || [ -n "${line-}" ]; do
+                line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
+                if [ -z "$line" ]; then
+                  continue
+                fi
+                case "$line" in \#*) continue;; esac
+                # Regex lines (e.g. ^\.git$); lftp uses rx: for regex in -X.
+                printf ' -X "rx:%s"' "$line"
+              done < "$EXFILE"
+            fi
+            echo " --no-empty-dirs --delete --verbose --parallel=$PAR -R . $REMOTE"
+            echo "quit"
+          } > /tmp/lftp.script
+          lftp -u "$RUSER","$RPASS" -f /tmp/lftp.script "$RHOST"

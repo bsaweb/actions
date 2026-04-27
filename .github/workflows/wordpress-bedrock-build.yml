@@ -1,0 +1,96 @@
+# Reusable workflow: WordPress Bedrock build (PHP + Node), artifact for deploy.
+# Call from a site repo: uses: bsaweb/actions/.github/workflows/wordpress-bedrock-build.yml@<ref>
+on:
+  workflow_call:
+    inputs:
+      php-version:
+        description: "PHP version for the runner."
+        type: string
+        default: "8.2"
+      node-version:
+        description: "Node.js version."
+        type: string
+        default: "20"
+      working-directory:
+        description: "Repository root for composer/npm; use . for monorepo root."
+        type: string
+        default: "."
+      composer-install-args:
+        description: "Arguments passed to composer install (leading command name omitted)."
+        type: string
+        default: "--no-dev --prefer-dist --no-interaction --optimize-autoloader"
+      run-npm:
+        description: "Run npm ci and npm run build if package.json exists at working-directory."
+        type: boolean
+        default: true
+      artifact-name:
+        description: "Uploaded artifact name for deploy jobs to download."
+        type: string
+        default: "bedrock-build"
+    secrets:
+      COMPOSER_AUTH:
+        description: "Optional JSON for private Composer registries (same as COMPOSER_AUTH in GitLab CI)."
+        required: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ inputs.php-version }}
+          tools: composer
+          coverage: none
+          extensions: mbstring, exif, intl, bcmath, zip, opcache, mysqli, pdo_mysql, xml,
+            dom, iconv, gd, curl
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: |
+          echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+        working-directory: ${{ inputs.working-directory }}
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Composer install
+        env:
+          COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
+        run: composer install ${{ inputs.composer-install-args }}
+        working-directory: ${{ inputs.working-directory }}
+
+      - name: Use Node
+        if: inputs.run-npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+          cache-dependency-path: ${{ format('{0}/package-lock.json', inputs.working-directory) }}
+
+      - name: npm ci and build
+        if: inputs.run-npm
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          if [ -f package.json ]; then
+            npm ci
+            npm run build --if-present
+          else
+            echo "No package.json; skipping Node steps."
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          # Full tree after Composer + npm; deploy mirrors the same layout as GitLab lftp.
+          path: "."
+          if-no-files-found: error
