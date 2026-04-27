@@ -1,15 +1,15 @@
 # bsaweb/actions
 
-**Private** org repository: [reusable GitHub Actions workflows](.github/workflows/) for WordPress (Bedrock) sites — parity with the GitLab components under `bsaweb/ci` (wordpress + lftp).
+**Private** org repository: [reusable GitHub Actions workflows](.github/workflows/) for WordPress (Bedrock) projects.
 
 ## Workflows (callable)
 
 | File | Role |
 | --- | --- |
-| [`wordpress-bedrock-build.yml`](.github/workflows/wordpress-bedrock-build.yml) | `composer install`, optional `npm ci` + `npm run build`, upload `bedrock-build` artifact. |
-| [`lftp-deploy.yml`](.github/workflows/lftp-deploy.yml) | Download artifact, `lftp` mirror to FTPS (regex excludes, same file as `mirror_exclude_rx_from` on GitLab). |
+| [`wordpress-bedrock-build.yml`](.github/workflows/wordpress-bedrock-build.yml) | `composer install`, optional `npm ci` + `npm run build`, upload an artifact (default `bedrock-build`). |
+| [`lftp-deploy.yml`](.github/workflows/lftp-deploy.yml) | Download artifact, `lftp` mirror to FTPS, regex-based excludes via `mirror_exclude_rx_from`. |
 
-**Pin a ref** in the caller (`@v1`, `@<sha>`, or branch name). Prefer **release tags** for production.
+**Pin a ref** in the caller (`@v1`, `@<sha>`, or branch). Prefer **release tags** for production.
 
 ## Example (consumer repo)
 
@@ -39,28 +39,30 @@ jobs:
       environment: staging
       mirror_remote_path: /httpdocs
     secrets:
-      ftp_host: ${{ secrets.STAGING_FTP_HOST }}
-      ftp_login: ${{ secrets.STAGING_FTP_LOGIN }}
-      ftp_password: ${{ secrets.STAGING_FTP_PASSWORD }}
+      site: ${{ secrets.STAGING_FTP_HOST }}
+      user: ${{ secrets.STAGING_FTP_LOGIN }}
+      password: ${{ secrets.STAGING_FTP_PASSWORD }}
 ```
 
-`lftp` credentials must match the values you use today in GitLab CI variables. Reusable workflows in **private** other repos are allowed if [this repository allows access to workflows from private callers](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#allowing-access-to-components-in-a-private-repository).
+`lftp` credentials must be stored as repository or environment secrets. Reusable workflows in **private** other repos are allowed if [this repository allows access to workflows from private callers](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#allowing-access-to-components-in-a-private-repository).
+
+Set `mirror_exclude_rx_from` if your regex exclude file is not at the default path in `lftp-deploy`.
 
 ## Secrets (typical)
 
 | Secret | Use |
 | --- | --- |
-| `COMPOSER_AUTH` | JSON for private Composer (same as local `auth.json` / GitLab). |
-| `STAGING_FTP_HOST`, `STAGING_FTP_LOGIN`, `STAGING_FTP_PASSWORD` | Staging deploy. |
+| `COMPOSER_AUTH` | JSON for private Composer (same as local `auth.json` / `COMPOSER_AUTH` env). |
+| `STAGING_FTP_HOST`, `STAGING_FTP_LOGIN`, `STAGING_FTP_PASSWORD` (or your naming) | Map to `site` / `user` / `password` in the deploy workflow. |
 | `PRODUCTION_FTP_*` | Production, etc. |
 
 ## Notes (v1)
 
-- Build uploads the **whole** checkout (including `.git`); the mirror step applies the same **regex** exclude file as on GitLab. Consider a slimmer artifact later to save minutes and upload size.
-- `lftp` passwords containing **commas** may need an escape strategy or `.netrc` (follow-up if needed).
-- Pivaut multi-target (e.g. Canada): add a second `deploy_*` job with `needs: [ build ]` and the correct secrets/paths; reuse the same `lftp-deploy` workflow.
+- The build job uploads the **whole** checkout (including `.git`); the mirror step applies a **regex** exclude list. You can add a slimmer packaging step later to save time and space.
+- `lftp` passwords containing **commas** may need a different auth approach (e.g. `.netrc`); follow up if you hit that.
+- Several targets (e.g. staging + production, or another region): add a `deploy_*` job per target with `needs: [ build ]` and the right secrets/paths, reusing `lftp-deploy`.
 
 ## Development
 
 - Clone: `git@github.com:bsaweb/actions.git`
-- For quick YAML checks locally: [actionlint](https://github.com/rhasspy/actionlint) on `.github/workflows/*.yml` if installed.
+- Optional: [actionlint](https://github.com/rhasspy/actionlint) on `.github/workflows/*.yml`.

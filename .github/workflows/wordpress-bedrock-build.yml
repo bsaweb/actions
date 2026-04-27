@@ -29,7 +29,7 @@ on:
         default: "bedrock-build"
     secrets:
       COMPOSER_AUTH:
-        description: "Optional JSON for private Composer registries (same as COMPOSER_AUTH in GitLab CI)."
+        description: "Optional JSON for private Composer registries (standard COMPOSER_AUTH format)."
         required: false
 
 jobs:
@@ -91,6 +91,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.artifact-name }}
-          # Full tree after Composer + npm; deploy mirrors the same layout as GitLab lftp.
+          # Full tree after Composer + npm; lftp step mirrors the same tree to the server.
           path: "."
           if-no-files-found: error

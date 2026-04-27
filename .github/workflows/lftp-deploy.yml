@@ -1,18 +1,16 @@
-# Reusable workflow: deploy build artifact via lftp/FTPS mirror (aligned with GitLab lftp deploy component).
+# Reusable workflow: deploy a build artifact via lftp/FTPS mirror to a remote path.
 # In the caller: `needs: [ build ]` and the same `artifact-name` as wordpress-bedrock-build.
 on:
   workflow_call:
     inputs:
       environment:
-        description: "Label for the job name (e.g. staging, staging — use a GitHub
-          Environment in the caller if needed)."
+        description: "Label for the job name (e.g. staging). Optionally map to a GitHub Environment in the caller."
         type: string
         required: true
       mirror_exclude_rx_from:
-        description: "Path to regex exclude file inside the artifact (GitLab:
-          mirror_exclude_rx_from)."
+        description: "Path to the regex exclude list inside the artifact (one pattern per line)."
         type: string
-        default: ".bsaweb/gitlab-ci/lftp-exclude-regex.txt"
+        default: ".bsaweb/lftp-exclude-regex.txt"
       mirror_remote_path:
         description: "Remote path on the server (e.g. /httpdocs)."
         type: string
