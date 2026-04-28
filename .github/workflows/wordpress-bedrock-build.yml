@@ -149,7 +149,24 @@ jobs:
           path: |
             .
             !.git
+            !.github
+            !.gitlab-ci.yml
+            !.bsaweb
+            !.ddev
+            !.gitignore
+            !.gitattributes
+            !.DS_Store
             !node_modules
             !**/node_modules
+            !composer.json
+            !composer.lock
+            !package.json
+            !package-lock.json
+            !yarn.lock
+            !wp-cli.yml
+            !phpcs.xml
+            !pint.json
+            !README.md
+            !LICENSE.md
             ${{ inputs.artifact-exclude }}
           if-no-files-found: error
