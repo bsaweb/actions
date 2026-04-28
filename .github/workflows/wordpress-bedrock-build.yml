@@ -33,20 +33,20 @@ on:
         type: string
         default: ""
     secrets:
-      BSAWEB_SATIS_REPOSITORY_USER:
+      COMPOSER_BSAWEB_SATIS_REGISTRY_USER:
         description: "Username (basic auth) for satis.bsa-web.fr."
         required: false
-      BSAWEB_SATIS_REPOSITORY_PASS:
-        description: "Password (basic auth) for satis.bsa-web.fr."
+      COMPOSER_BSAWEB_SATIS_REGISTRY_PASSWORD:
+        description: "Password (basic auth) for satis.bsa-web.fr and composer.bsa-web.fr."
         required: false
-      BSAWEB_COMPOSER_REPOSITORY_USER:
-        description: "Username (basic auth) for composer.bsa-web.fr."
+      COMPOSER_BSAWEB_SATISPRESS_REGISTRY_USER:
+        description: "Username (basic auth) for composer.bsa-web.fr (SatisPress)."
         required: false
-      BSAWEB_COMPOSER_REPOSITORY_PASS:
-        description: "Password (basic auth) for composer.bsa-web.fr."
+      COMPOSER_BSAWEB_GITLAB_REGISTRY_TOKEN:
+        description: "GitLab token for VCS access on gitlab.bsa-web.fr."
         required: false
-      BSAWEB_GITLAB_TOKEN:
-        description: "GitLab token for gitlab.bsa-web.fr private packages."
+      COMPOSER_ECOLES_CREATIVES_GITLAB_REGISTRY_TOKEN:
+        description: "Deploy token for the GitLab group Composer package registry on gitlab.bsa-web.fr."
         required: false
       NPM_BSAWEB_REGISTRY_TOKEN:
         description: "GitLab deploy token (read_package_registry) for @bsaweb scoped
@@ -85,20 +85,23 @@ jobs:
 
       - name: Configure Composer auth
         env:
-          SATIS_USER: ${{ secrets.BSAWEB_SATIS_REPOSITORY_USER }}
-          SATIS_PASS: ${{ secrets.BSAWEB_SATIS_REPOSITORY_PASS }}
-          COMPOSER_USER: ${{ secrets.BSAWEB_COMPOSER_REPOSITORY_USER }}
-          COMPOSER_PASS: ${{ secrets.BSAWEB_COMPOSER_REPOSITORY_PASS }}
-          GITLAB_TOKEN: ${{ secrets.BSAWEB_GITLAB_TOKEN }}
+          SATIS_USER: ${{ secrets.COMPOSER_BSAWEB_SATIS_REGISTRY_USER }}
+          SATIS_PASS: ${{ secrets.COMPOSER_BSAWEB_SATIS_REGISTRY_PASSWORD }}
+          SATISPRESS_USER: ${{ secrets.COMPOSER_BSAWEB_SATISPRESS_REGISTRY_USER }}
+          BSAWEB_GITLAB_TOKEN: ${{ secrets.COMPOSER_BSAWEB_GITLAB_REGISTRY_TOKEN }}
+          ECOLES_CREATIVES_TOKEN: ${{ secrets.COMPOSER_ECOLES_CREATIVES_GITLAB_REGISTRY_TOKEN }}
         run: |
           if [ -n "$SATIS_USER" ]; then
             composer config --global --auth http-basic.satis.bsa-web.fr "$SATIS_USER" "$SATIS_PASS"
           fi
-          if [ -n "$COMPOSER_USER" ]; then
-            composer config --global --auth http-basic.composer.bsa-web.fr "$COMPOSER_USER" "$COMPOSER_PASS"
+          if [ -n "$SATISPRESS_USER" ]; then
+            composer config --global --auth http-basic.composer.bsa-web.fr "$SATISPRESS_USER" "$SATIS_PASS"
           fi
-          if [ -n "$GITLAB_TOKEN" ]; then
-            composer config --global --auth gitlab-token.gitlab.bsa-web.fr "$GITLAB_TOKEN"
+          if [ -n "$BSAWEB_GITLAB_TOKEN" ]; then
+            composer config --global --auth gitlab-token.gitlab.bsa-web.fr "$BSAWEB_GITLAB_TOKEN"
+          fi
+          if [ -n "$ECOLES_CREATIVES_TOKEN" ]; then
+            composer config --global --auth http-basic.gitlab.bsa-web.fr "__token__" "$ECOLES_CREATIVES_TOKEN"
           fi
 
       - name: Composer install
