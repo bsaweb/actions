@@ -56,6 +56,10 @@ jobs:
           LFTP_PASSWORD: ${{ secrets.LFTP_PASSWORD }}
         run: |
           set -euo pipefail
+          if [ -n "$EXFILE" ] && [ ! -f "$EXFILE" ]; then
+            echo "ERROR: exclude file '$EXFILE' not found in artifact — aborting to avoid unprotected --delete." >&2
+            exit 1
+          fi
           {
             echo "set net:reconnect-interval-base 5"
             echo "set net:max-retries 2"
@@ -64,10 +68,7 @@ jobs:
             echo "set ftp:ssl-protect-data true"
             echo "set ssl:verify-certificate no"
             echo "set sftp:auto-confirm yes"
-            if [ -n "$EXFILE" ] && [ ! -f "$EXFILE" ]; then
-              echo "ERROR: exclude file '$EXFILE' not found in artifact — aborting to avoid unprotected --delete." >&2
-              exit 1
-            fi
+            printf 'open -u %s,%s %s\n' "$LFTP_USER" "$LFTP_PASSWORD" "$LFTP_SITE"
             echo -n "mirror"
             if [ "$MIRROR_DRY_RUN" = "true" ]; then
               echo -n " --dry-run"
@@ -86,4 +87,4 @@ jobs:
             echo " --no-empty-dirs --delete --verbose --parallel=$PAR -R . $REMOTE"
             echo "quit"
           } > /tmp/lftp.script
-          lftp -u "$LFTP_USER","$LFTP_PASSWORD" -f /tmp/lftp.script "$LFTP_SITE"
+          lftp -f /tmp/lftp.script
