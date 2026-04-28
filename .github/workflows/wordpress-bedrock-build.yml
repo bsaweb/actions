@@ -33,7 +33,7 @@ on:
         type: string
         default: ""
       artifact-exclude:
-        description: "Additional paths to exclude from the artifact (one per line, e.g. theme/plugin src dirs)."
+        description: "Additional exclusion patterns for the artifact (one per line, with leading ! e.g. !web/app/themes/my-theme/src)."
         type: string
         default: ""
     secrets:
@@ -146,10 +146,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.artifact-name }}
-          path: "."
-          exclude: |
-            .git
-            node_modules
-            **/node_modules
+          path: |
+            .
+            !.git
+            !node_modules
+            !**/node_modules
             ${{ inputs.artifact-exclude }}
           if-no-files-found: error
