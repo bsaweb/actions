@@ -32,6 +32,10 @@ on:
         description: "GitLab npm registry URL for @bsaweb scoped packages."
         type: string
         default: ""
+      artifact-exclude:
+        description: "Additional paths to exclude from the artifact (one per line, e.g. theme/plugin src dirs)."
+        type: string
+        default: ""
     secrets:
       COMPOSER_BSAWEB_SATIS_REGISTRY_USER:
         description: "Username (basic auth) for satis.bsa-web.fr."
@@ -142,6 +146,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.artifact-name }}
-          # Full tree after Composer + npm; lftp step mirrors the same tree to the server.
           path: "."
+          exclude: |
+            .git
+            node_modules
+            **/node_modules
+            ${{ inputs.artifact-exclude }}
           if-no-files-found: error
