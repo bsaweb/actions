@@ -33,9 +33,20 @@ on:
         type: string
         default: ""
     secrets:
-      COMPOSER_AUTH_JSON:
-        description: "Optional JSON for private Composer registries (standard auth.json
-          format)."
+      BSAWEB_SATIS_REPOSITORY_USER:
+        description: "Username (basic auth) for satis.bsa-web.fr."
+        required: false
+      BSAWEB_SATIS_REPOSITORY_PASS:
+        description: "Password (basic auth) for satis.bsa-web.fr."
+        required: false
+      BSAWEB_COMPOSER_REPOSITORY_USER:
+        description: "Username (basic auth) for composer.bsa-web.fr."
+        required: false
+      BSAWEB_COMPOSER_REPOSITORY_PASS:
+        description: "Password (basic auth) for composer.bsa-web.fr."
+        required: false
+      BSAWEB_GITLAB_TOKEN:
+        description: "GitLab token for gitlab.bsa-web.fr private packages."
         required: false
       NPM_BSAWEB_REGISTRY_TOKEN:
         description: "GitLab deploy token (read_package_registry) for @bsaweb scoped
@@ -72,9 +83,25 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-composer-
 
-      - name: Composer install
+      - name: Configure Composer auth
         env:
-          COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH_JSON }}
+          SATIS_USER: ${{ secrets.BSAWEB_SATIS_REPOSITORY_USER }}
+          SATIS_PASS: ${{ secrets.BSAWEB_SATIS_REPOSITORY_PASS }}
+          COMPOSER_USER: ${{ secrets.BSAWEB_COMPOSER_REPOSITORY_USER }}
+          COMPOSER_PASS: ${{ secrets.BSAWEB_COMPOSER_REPOSITORY_PASS }}
+          GITLAB_TOKEN: ${{ secrets.BSAWEB_GITLAB_TOKEN }}
+        run: |
+          if [ -n "$SATIS_USER" ]; then
+            composer config --global --auth http-basic.satis.bsa-web.fr "$SATIS_USER" "$SATIS_PASS"
+          fi
+          if [ -n "$COMPOSER_USER" ]; then
+            composer config --global --auth http-basic.composer.bsa-web.fr "$COMPOSER_USER" "$COMPOSER_PASS"
+          fi
+          if [ -n "$GITLAB_TOKEN" ]; then
+            composer config --global --auth gitlab-token.gitlab.bsa-web.fr "$GITLAB_TOKEN"
+          fi
+
+      - name: Composer install
         run: composer install ${{ inputs.composer-install-args }}
         working-directory: ${{ inputs.working-directory }}
 
