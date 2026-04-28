@@ -123,7 +123,7 @@ jobs:
           REGISTRY_URL: ${{ inputs.npm-bsaweb-registry-url }}
           TOKEN: ${{ secrets.NPM_BSAWEB_REGISTRY_TOKEN }}
         run: |
-          REGISTRY_HOST="${REGISTRY_URL#https:}"
+          REGISTRY_HOST="${REGISTRY_URL#https://}"
           printf '@bsaweb:registry=%s\n//%s:_authToken=%s\n' \
             "$REGISTRY_URL" "$REGISTRY_HOST" "$TOKEN" >> ~/.npmrc
 
