@@ -47,17 +47,17 @@ runs:
       shell: bash
       working-directory: _deploy
       env:
-        EXFILE: ${{ inputs.mirror-exclude-rx-from }}
-        REMOTE: ${{ inputs.mirror-remote-path }}
-        PAR: ${{ inputs.mirror-parallel }}
+        MIRROR_EXCLUDE_RX_FROM: ${{ inputs.mirror-exclude-rx-from }}
+        MIRROR_REMOTE_PATH: ${{ inputs.mirror-remote-path }}
+        MIRROR_PARALLEL: ${{ inputs.mirror-parallel }}
         MIRROR_DRY_RUN: ${{ inputs.mirror-dry-run }}
         LFTP_SITE: ${{ inputs.lftp-site }}
         LFTP_USER: ${{ inputs.lftp-user }}
         LFTP_PASSWORD: ${{ inputs.lftp-password }}
       run: |
         set -euo pipefail
-        if [ -n "$EXFILE" ] && [ ! -f "$EXFILE" ]; then
-          echo "ERROR: exclude file '$EXFILE' not found in artifact — aborting to avoid unprotected --delete." >&2
+        if [ -n "$MIRROR_EXCLUDE_RX_FROM" ] && [ ! -f "$MIRROR_EXCLUDE_RX_FROM" ]; then
+          echo "ERROR: exclude file '$MIRROR_EXCLUDE_RX_FROM' not found in artifact — aborting to avoid unprotected --delete." >&2
           exit 1
         fi
         {
@@ -73,7 +73,7 @@ runs:
           if [ "$MIRROR_DRY_RUN" = "true" ]; then
             echo -n " --dry-run"
           fi
-          if [ -n "$EXFILE" ] && [ -f "$EXFILE" ]; then
+          if [ -n "$MIRROR_EXCLUDE_RX_FROM" ] && [ -f "$MIRROR_EXCLUDE_RX_FROM" ]; then
             while IFS= read -r line || [ -n "${line-}" ]; do
               line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
               if [ -z "$line" ]; then
@@ -82,9 +82,9 @@ runs:
               case "$line" in \#*) continue;; esac
               # Regex lines (e.g. ^\.git$); lftp uses rx: for regex in -X.
               printf ' -X "rx:%s"' "$line"
-            done < "$EXFILE"
+            done < "$MIRROR_EXCLUDE_RX_FROM"
           fi
-          echo " --no-empty-dirs --delete --verbose --parallel=$PAR -R . $REMOTE"
+          echo " --no-empty-dirs --delete --verbose --parallel=$MIRROR_PARALLEL -R . $MIRROR_REMOTE_PATH"
           echo "quit"
         } > /tmp/lftp.script
         lftp -f /tmp/lftp.script
