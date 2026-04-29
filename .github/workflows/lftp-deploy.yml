@@ -1,13 +1,16 @@
 # Reusable workflow: deploy a build artifact via lftp/FTPS mirror to a remote path.
 # In the caller: `needs: [ build ]` and the same `artifact-name` as wordpress-bedrock-build.
-# GitHub Environment is derived from the branch: `main` → production, any other ref → staging.
-# Create `production` and `staging` Environments on the repo; put LFTP_SITE, LFTP_USER, LFTP_PASSWORD on each.
+# Create one GitHub Environment per target (e.g. staging/agency, production/client).
+# Put LFTP_SITE, LFTP_USER, LFTP_PASSWORD on each Environment.
 on:
   workflow_call:
     inputs:
+      environment:
+        description: "GitHub Environment name (must match repo Settings → Environments, e.g. staging/agency)."
+        type: string
+        required: true
       mirror-exclude-rx-from:
-        description: "Path to the regex exclude list inside the artifact (one pattern
-          per line)."
+        description: "Path to the regex exclude list inside the artifact (one pattern per line)."
         type: string
         default: ".bsaweb/ci-cd/lftp-exclude-regex.txt"
       mirror-remote-path:
@@ -30,10 +33,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # `github` context: ref is always set for the run (works inside reusable workflows).
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
-    name: Deploy to ${{ github.ref == 'refs/heads/main' && 'production' || 'staging'
-      }}
+    environment: ${{ inputs.environment }}
+    name: Deploy to ${{ inputs.environment }}
     steps:
       - name: Download build artifact
         uses: actions/download-artifact@v4
