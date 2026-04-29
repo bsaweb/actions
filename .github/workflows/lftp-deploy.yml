@@ -1,12 +1,12 @@
 # Reusable workflow: deploy a build artifact via lftp/FTPS mirror to a remote path.
-# In the caller: `needs: [ build ]` and the same `artifact-name` as wordpress-bedrock-build.
-# Create one GitHub Environment per target (e.g. staging/agency, production/client).
-# Put LFTP_SITE, LFTP_USER, LFTP_PASSWORD on each Environment.
+# In the caller: `needs: [ build ]` and pass LFTP_SITE, LFTP_USER, LFTP_PASSWORD via secrets:.
+# Create one GitHub Environment per target for protection rules; store LFTP_* as repo secrets
+# with a per-target prefix (e.g. STAGING_BSAWEB_LFTP_SITE) and thread them via the caller.
 on:
   workflow_call:
     inputs:
       environment:
-        description: "GitHub Environment name (must match repo Settings → Environments, e.g. staging/agency)."
+        description: "GitHub Environment name for deployment tracking (e.g. staging-bsaweb)."
         type: string
         required: true
       mirror-exclude-rx-from:
@@ -29,6 +29,16 @@ on:
         description: "Pass --dry-run to lftp mirror (simulate without transferring files)."
         type: boolean
         default: false
+    secrets:
+      LFTP_SITE:
+        description: "FTP/FTPS hostname."
+        required: true
+      LFTP_USER:
+        description: "FTP username."
+        required: true
+      LFTP_PASSWORD:
+        description: "FTP password."
+        required: true
 
 jobs:
   deploy:
