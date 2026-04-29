@@ -22,7 +22,7 @@ inputs:
     required: false
     default: "bedrock-build"
   mirror-parallel:
-    description: "lftp mirror --parallel N."
+    description: "Number of parallel transfers (lftp mirror --parallel)."
     required: false
     default: "5"
   mirror-dry-run:
