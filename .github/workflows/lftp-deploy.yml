@@ -45,6 +45,20 @@ jobs:
       - name: Install lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
+      - name: Debug — check secrets and inputs
+        env:
+          LFTP_SITE: ${{ secrets.LFTP_SITE }}
+          LFTP_USER: ${{ secrets.LFTP_USER }}
+          LFTP_PASSWORD: ${{ secrets.LFTP_PASSWORD }}
+        run: |
+          echo "environment  : ${{ inputs.environment }}"
+          echo "remote-path  : ${{ inputs.mirror-remote-path }}"
+          echo "exclude-file : ${{ inputs.mirror-exclude-rx-from }}"
+          echo "dry-run      : ${{ inputs.mirror-dry-run }}"
+          echo "LFTP_SITE    : $( [ -n "$LFTP_SITE" ]     && echo "set (${#LFTP_SITE} chars)"     || echo "EMPTY" )"
+          echo "LFTP_USER    : $( [ -n "$LFTP_USER" ]     && echo "set (${#LFTP_USER} chars)"     || echo "EMPTY" )"
+          echo "LFTP_PASSWORD: $( [ -n "$LFTP_PASSWORD" ] && echo "set (${#LFTP_PASSWORD} chars)" || echo "EMPTY" )"
+
       - name: Mirror to FTPS
         working-directory: _deploy
         env:
@@ -88,4 +102,7 @@ jobs:
             echo " --no-empty-dirs --delete --verbose --parallel=$PAR -R . $REMOTE"
             echo "quit"
           } > /tmp/lftp.script
+          echo "--- lftp script ---"
+          cat /tmp/lftp.script
+          echo "-------------------"
           lftp -f /tmp/lftp.script
