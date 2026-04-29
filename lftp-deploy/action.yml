@@ -1,14 +1,14 @@
-name: lftp FTPS deploy
-description: Mirror a build artifact to a remote path via lftp/FTPS.
+name: lftp deploy
+description: Mirror a build artifact to a remote path via lftp.
 inputs:
   lftp-site:
-    description: "FTP/FTPS hostname."
+    description: "Hostname (protocol depends on the site value, e.g. ftp://..., ftps://...)."
     required: true
   lftp-user:
-    description: "FTP username."
+    description: "Username."
     required: true
   lftp-password:
-    description: "FTP password."
+    description: "Password."
     required: true
   mirror-exclude-rx-from:
     description: "Path to the regex exclude list inside the artifact (one pattern per line)."
@@ -43,21 +43,7 @@ runs:
       shell: bash
       run: sudo apt-get update && sudo apt-get install -y lftp
 
-    - name: Debug — check inputs
-      shell: bash
-      env:
-        LFTP_SITE: ${{ inputs.lftp-site }}
-        LFTP_USER: ${{ inputs.lftp-user }}
-        LFTP_PASSWORD: ${{ inputs.lftp-password }}
-      run: |
-        echo "remote-path  : ${{ inputs.mirror-remote-path }}"
-        echo "exclude-file : ${{ inputs.mirror-exclude-rx-from }}"
-        echo "dry-run      : ${{ inputs.mirror-dry-run }}"
-        echo "LFTP_SITE    : $( [ -n "$LFTP_SITE" ]     && echo "set (${#LFTP_SITE} chars)"     || echo "EMPTY" )"
-        echo "LFTP_USER    : $( [ -n "$LFTP_USER" ]     && echo "set (${#LFTP_USER} chars)"     || echo "EMPTY" )"
-        echo "LFTP_PASSWORD: $( [ -n "$LFTP_PASSWORD" ] && echo "set (${#LFTP_PASSWORD} chars)" || echo "EMPTY" )"
-
-    - name: Mirror to FTPS
+    - name: Mirror via lftp
       shell: bash
       working-directory: _deploy
       env:
@@ -101,7 +87,4 @@ runs:
           echo " --no-empty-dirs --delete --verbose --parallel=$PAR -R . $REMOTE"
           echo "quit"
         } > /tmp/lftp.script
-        echo "--- lftp script ---"
-        cat /tmp/lftp.script
-        echo "-------------------"
         lftp -f /tmp/lftp.script
