@@ -24,7 +24,7 @@ inputs:
   mirror-parallel:
     description: "Number of parallel transfers (lftp mirror --parallel)."
     required: false
-    default: "5"
+    default: "10"
   mirror-dry-run:
     description: "Pass --dry-run to lftp mirror (simulate without transferring files)."
     required: false
@@ -34,7 +34,7 @@ runs:
   using: composite
   steps:
     - name: Download build artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: ${{ inputs.artifact-name }}
         path: _deploy
@@ -60,9 +60,14 @@ runs:
           echo "ERROR: exclude file '$MIRROR_EXCLUDE_RX_FROM' not found in artifact — aborting to avoid unprotected --delete." >&2
           exit 1
         fi
+        EXCLUDE_FILE=""
+        if [ -n "$MIRROR_EXCLUDE_RX_FROM" ] && [ -f "$MIRROR_EXCLUDE_RX_FROM" ]; then
+          EXCLUDE_FILE="$(realpath "$MIRROR_EXCLUDE_RX_FROM")"
+        fi
         {
           echo "set net:reconnect-interval-base 5"
           echo "set net:max-retries 2"
+          echo "set net:socket-buffer 33554432"
           echo "set ftps:initial-prot ''"
           echo "set ftp:ssl-force true"
           echo "set ftp:ssl-protect-data true"
@@ -73,18 +78,10 @@ runs:
           if [ "$MIRROR_DRY_RUN" = "true" ]; then
             echo -n " --dry-run"
           fi
-          if [ -n "$MIRROR_EXCLUDE_RX_FROM" ] && [ -f "$MIRROR_EXCLUDE_RX_FROM" ]; then
-            while IFS= read -r line || [ -n "${line-}" ]; do
-              line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
-              if [ -z "$line" ]; then
-                continue
-              fi
-              case "$line" in \#*) continue;; esac
-              # Regex lines (e.g. ^\.git$); lftp uses rx: for regex in -X.
-              printf ' -X "rx:%s"' "$line"
-            done < "$MIRROR_EXCLUDE_RX_FROM"
+          if [ -n "$EXCLUDE_FILE" ]; then
+            printf ' --exclude-rx-from="%s"' "$EXCLUDE_FILE"
           fi
-          echo " --no-empty-dirs --delete --verbose --parallel=$MIRROR_PARALLEL -R . $MIRROR_REMOTE_PATH"
+          echo " --ignore-time --no-empty-dirs --delete --verbose --parallel=$MIRROR_PARALLEL -R . $MIRROR_REMOTE_PATH"
           echo "quit"
         } > /tmp/lftp.script
         lftp -f /tmp/lftp.script
