@@ -58,6 +58,12 @@ on:
         description: "GitLab deploy token (read_package_registry) for @bsaweb scoped
           packages."
         required: false
+      COMPOSER_GRAVITY_REGISTRY_USER:
+        description: "Gravity license key user for composer.gravity.io (downloads plugin)."
+        required: false
+      COMPOSER_GRAVITY_REGISTRY_PASSWORD:
+        description: "Gravity site URL or password pair for composer.gravity.io Composer."
+        required: false
 
 jobs:
   build:
@@ -96,6 +102,8 @@ jobs:
           SATISPRESS_USER: ${{ secrets.COMPOSER_BSAWEB_SATISPRESS_REGISTRY_USER }}
           BSAWEB_GITLAB_TOKEN: ${{ secrets.COMPOSER_BSAWEB_GITLAB_REGISTRY_TOKEN }}
           ECOLES_CREATIVES_TOKEN: ${{ secrets.COMPOSER_ECOLES_CREATIVES_GITLAB_REGISTRY_TOKEN }}
+          GF_USER: ${{ secrets.COMPOSER_GRAVITY_REGISTRY_USER }}
+          GF_PASSWORD: ${{ secrets.COMPOSER_GRAVITY_REGISTRY_PASSWORD }}
         run: |
           if [ -n "$SATIS_USER" ]; then
             composer config --global --auth http-basic.satis.bsa-web.fr "$SATIS_USER" "$SATIS_PASSWORD"
@@ -108,6 +116,9 @@ jobs:
           fi
           if [ -n "$ECOLES_CREATIVES_TOKEN" ]; then
             composer config --global --auth http-basic.gitlab.bsa-web.fr "__token__" "$ECOLES_CREATIVES_TOKEN"
+          fi
+          if [ -n "$GF_USER" ]; then
+            composer config --global --auth http-basic.composer.gravity.io "$GF_USER" "$GF_PASSWORD"
           fi
 
       - name: Composer install
