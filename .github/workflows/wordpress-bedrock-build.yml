@@ -68,16 +68,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install PHP
-        # Pinned: @v2 (2.37.1) intermittently fails codeload on GitHub-hosted runners.
-        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # 2.37.0
+        uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ inputs.php-version }}
           tools: composer
