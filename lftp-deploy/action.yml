@@ -14,6 +14,10 @@ inputs:
     description: "Path to the regex exclude list inside the artifact (one pattern per line)."
     required: false
     default: ".bsaweb/ci-cd/lftp-exclude-regex.txt"
+  mirror-exclude:
+    description: "Glob/path passed to lftp mirror --exclude (protects remote paths from sync/delete)."
+    required: false
+    default: "web/app/uploads"
   mirror-remote-path:
     description: "Remote path on the server (e.g. /httpdocs)."
     required: true
@@ -48,6 +52,7 @@ runs:
       working-directory: _deploy
       env:
         MIRROR_EXCLUDE_RX_FROM: ${{ inputs.mirror-exclude-rx-from }}
+        MIRROR_EXCLUDE: ${{ inputs.mirror-exclude }}
         MIRROR_REMOTE_PATH: ${{ inputs.mirror-remote-path }}
         MIRROR_PARALLEL: ${{ inputs.mirror-parallel }}
         MIRROR_DRY_RUN: ${{ inputs.mirror-dry-run }}
@@ -56,6 +61,23 @@ runs:
         LFTP_PASSWORD: ${{ inputs.lftp-password }}
       run: |
         set -euo pipefail
+        if [ -z "$MIRROR_REMOTE_PATH" ]; then
+          echo "ERROR: mirror-remote-path is empty — aborting to avoid deploying to the server root." >&2
+          exit 1
+        fi
+        REMOTE_PATH="$MIRROR_REMOTE_PATH"
+        REMOTE_PATH_NORMALIZED="${REMOTE_PATH%/}"
+        if [ "$REMOTE_PATH_NORMALIZED" = "/" ] || [ "$REMOTE_PATH_NORMALIZED" = "." ] || [ "$REMOTE_PATH_NORMALIZED" = "./" ] || [ -z "$REMOTE_PATH_NORMALIZED" ]; then
+          echo "ERROR: mirror-remote-path is a dangerous path: '$REMOTE_PATH' — aborting." >&2
+          echo "ERROR: With --delete enabled, lftp removes remote files not present locally." >&2
+          echo "ERROR: --exclude-rx-from does not protect against deletion when mirroring to the server root." >&2
+          echo "ERROR: Set mirror-remote-path to a specific subdirectory (e.g. /httpdocs)." >&2
+          exit 1
+        fi
+        if echo "$REMOTE_PATH" | grep -qE '\.\.|^\.\./|/\.\.'; then
+          echo "ERROR: mirror-remote-path contains '..' which is dangerous: '$REMOTE_PATH' — aborting." >&2
+          exit 1
+        fi
         if [ -n "$MIRROR_EXCLUDE_RX_FROM" ] && [ ! -f "$MIRROR_EXCLUDE_RX_FROM" ]; then
           echo "ERROR: exclude file '$MIRROR_EXCLUDE_RX_FROM' not found in artifact — aborting to avoid unprotected --delete." >&2
           exit 1
@@ -80,6 +102,9 @@ runs:
           fi
           if [ -n "$EXCLUDE_FILE" ]; then
             printf ' --exclude-rx-from="%s"' "$EXCLUDE_FILE"
+          fi
+          if [ -n "$MIRROR_EXCLUDE" ]; then
+            printf ' --exclude=%s' "$MIRROR_EXCLUDE"
           fi
           echo " --ignore-time --no-empty-dirs --delete --verbose --parallel=$MIRROR_PARALLEL -R . $MIRROR_REMOTE_PATH"
           echo "quit"
