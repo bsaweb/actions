@@ -106,7 +106,7 @@ runs:
           if [ -n "$MIRROR_EXCLUDE" ]; then
             printf ' --exclude=%s' "$MIRROR_EXCLUDE"
           fi
-          echo " --ignore-time --no-empty-dirs --delete --verbose --parallel=$MIRROR_PARALLEL -R . $MIRROR_REMOTE_PATH"
+          echo " --no-empty-dirs --delete --verbose --parallel=$MIRROR_PARALLEL -R . $MIRROR_REMOTE_PATH"
           echo "quit"
         } > /tmp/lftp.script
         lftp -f /tmp/lftp.script
