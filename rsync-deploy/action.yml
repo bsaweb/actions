@@ -1,0 +1,112 @@
+name: rsync deploy
+description: Mirror a build artifact to a remote path via rsync over SSH.
+inputs:
+  ssh-host:
+    description: "Remote SSH hostname."
+    required: true
+  ssh-user:
+    description: "SSH username."
+    required: true
+  ssh-private-key:
+    description: "SSH private key (PEM)."
+    required: true
+  ssh-known-hosts:
+    description: "Known hosts entry for StrictHostKeyChecking (ssh-keyscan output)."
+    required: false
+    default: ""
+  ssh-port:
+    description: "SSH port."
+    required: false
+    default: "22"
+  mirror-remote-path:
+    description: "Remote path on the server (e.g. /httpdocs)."
+    required: true
+  rsync-exclude-from:
+    description: "Path to the exclude list inside the artifact (one pattern per line)."
+    required: false
+    default: ".bsaweb/ci-cd/rsync-exclude.txt"
+  rsync-exclude:
+    description: "Additional path passed to rsync --exclude (protects remote paths from sync/delete)."
+    required: false
+    default: "web/app/uploads"
+  artifact-name:
+    description: "Artifact to download; must match wordpress-bedrock-build."
+    required: false
+    default: "bedrock-build"
+  rsync-dry-run:
+    description: "Pass --dry-run and --itemize-changes to rsync (simulate without transferring files)."
+    required: false
+    default: "false"
+  rsync-compress:
+    description: "Pass -z to rsync for compression during transfer."
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Download build artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: _deploy
+
+    - name: Configure SSH agent
+      uses: webfactory/ssh-agent@v0.10.0
+      with:
+        ssh-private-key: ${{ inputs.ssh-private-key }}
+        ssh-known-hosts: ${{ inputs.ssh-known-hosts }}
+
+    - name: Mirror via rsync
+      shell: bash
+      working-directory: _deploy
+      env:
+        RSYNC_EXCLUDE_FROM: ${{ inputs.rsync-exclude-from }}
+        RSYNC_EXCLUDE: ${{ inputs.rsync-exclude }}
+        MIRROR_REMOTE_PATH: ${{ inputs.mirror-remote-path }}
+        RSYNC_DRY_RUN: ${{ inputs.rsync-dry-run }}
+        RSYNC_COMPRESS: ${{ inputs.rsync-compress }}
+        SSH_HOST: ${{ inputs.ssh-host }}
+        SSH_USER: ${{ inputs.ssh-user }}
+        SSH_PORT: ${{ inputs.ssh-port }}
+      run: |
+        set -euo pipefail
+        if [ -z "$MIRROR_REMOTE_PATH" ]; then
+          echo "ERROR: mirror-remote-path is empty — aborting to avoid deploying to the server root." >&2
+          exit 1
+        fi
+        REMOTE_PATH="$MIRROR_REMOTE_PATH"
+        REMOTE_PATH_NORMALIZED="${REMOTE_PATH%/}"
+        if [ "$REMOTE_PATH_NORMALIZED" = "/" ] || [ "$REMOTE_PATH_NORMALIZED" = "." ] || [ "$REMOTE_PATH_NORMALIZED" = "./" ] || [ -z "$REMOTE_PATH_NORMALIZED" ]; then
+          echo "ERROR: mirror-remote-path is a dangerous path: '$REMOTE_PATH' — aborting." >&2
+          echo "ERROR: With --delete enabled, rsync removes remote files not present locally." >&2
+          echo "ERROR: Set mirror-remote-path to a specific subdirectory (e.g. /httpdocs)." >&2
+          exit 1
+        fi
+        if echo "$REMOTE_PATH" | grep -qE '\.\.|^\.\./|/\.\.'; then
+          echo "ERROR: mirror-remote-path contains '..' which is dangerous: '$REMOTE_PATH' — aborting." >&2
+          exit 1
+        fi
+        if [ -n "$RSYNC_EXCLUDE_FROM" ] && [ ! -f "$RSYNC_EXCLUDE_FROM" ]; then
+          echo "ERROR: exclude file '$RSYNC_EXCLUDE_FROM' not found in artifact — aborting to avoid unprotected --delete." >&2
+          exit 1
+        fi
+        RSYNC_ARGS=(-av --delete)
+        if [ "$RSYNC_DRY_RUN" = "true" ]; then
+          RSYNC_ARGS+=(--dry-run --itemize-changes)
+        fi
+        if [ "$RSYNC_COMPRESS" = "true" ]; then
+          RSYNC_ARGS+=(-z)
+        fi
+        if [ -n "$RSYNC_EXCLUDE_FROM" ] && [ -f "$RSYNC_EXCLUDE_FROM" ]; then
+          RSYNC_ARGS+=(--exclude-from="$RSYNC_EXCLUDE_FROM")
+        fi
+        if [ -n "$RSYNC_EXCLUDE" ]; then
+          RSYNC_ARGS+=(--exclude="$RSYNC_EXCLUDE")
+        fi
+        REMOTE="${SSH_USER}@${SSH_HOST}:${REMOTE_PATH%/}/"
+        echo "Syncing to $REMOTE (dry-run=$RSYNC_DRY_RUN)"
+        rsync "${RSYNC_ARGS[@]}" \
+          -e "ssh -p ${SSH_PORT} -o StrictHostKeyChecking=yes" \
+          ./ \
+          "$REMOTE"

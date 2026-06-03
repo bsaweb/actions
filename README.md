@@ -29,12 +29,45 @@ In **Settings → Environments**, add **staging** and **production** with `LFTP_
 
 Set `mirror_exclude_rx_from` if your regex exclude file is not at the default path in `lftp-deploy`.
 
+## Composite actions (deploy)
+
+| Path | Role |
+| --- | --- |
+| [`lftp-deploy`](lftp-deploy/action.yml) | FTPS mirror via `lftp` (regex exclude file in artifact). |
+| [`rsync-deploy`](rsync-deploy/action.yml) | SSH + `rsync` mirror (glob exclude file in artifact). |
+
+### Example: rsync over SSH (production)
+
+```yaml
+  deploy-production:
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy to production
+        uses: bsaweb/actions/rsync-deploy@0.4.0
+        with:
+          ssh-host: ${{ secrets.SSH_HOST }}
+          ssh-user: ${{ secrets.SSH_USER }}
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh-known-hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+          ssh-port: ${{ secrets.SSH_PORT }}
+          rsync-exclude-from: .bsaweb/ci-cd/rsync-exclude.txt
+          mirror-remote-path: ${{ vars.SSH_MIRROR_REMOTE_PATH }}
+          rsync-dry-run: "true"
+```
+
+Add `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS`, and optionally `SSH_PORT` on the target **Environment**. Set `SSH_MIRROR_REMOTE_PATH` as an environment variable (same docroot path as LFTP when applicable).
+
+Keep `.bsaweb/ci-cd/rsync-exclude.txt` (glob patterns for rsync) aligned with `.bsaweb/ci-cd/lftp-exclude-regex.txt` when both deploy methods are used.
+
 ## Secrets (typical)
 
 | Secret | Use |
 | --- | --- |
 | `COMPOSER_AUTH` | JSON for private Composer (repo or org secret, often the same in all envs). |
 | `LFTP_HOST`, `LFTP_USER`, `LFTP_PASSWORD` | FTP/FTPS target; set per **Environment** (same names, different values per `staging` / `production` / …). |
+| `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS`, `SSH_PORT` | SSH/rsync target; set per **Environment** when using `rsync-deploy`. |
 
 ## Notes (v1)
 
