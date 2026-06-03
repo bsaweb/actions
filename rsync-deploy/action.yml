@@ -55,7 +55,18 @@ runs:
       uses: webfactory/ssh-agent@v0.10.0
       with:
         ssh-private-key: ${{ inputs.ssh-private-key }}
-        ssh-known-hosts: ${{ inputs.ssh-known-hosts }}
+
+    - name: Add SSH known hosts
+      if: inputs.ssh-known-hosts != ''
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        printf '%s\n' "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+        chmod 600 ~/.ssh/known_hosts
+      env:
+        SSH_KNOWN_HOSTS: ${{ inputs.ssh-known-hosts }}
 
     - name: Mirror via rsync
       shell: bash
@@ -71,6 +82,9 @@ runs:
         SSH_PORT: ${{ inputs.ssh-port }}
       run: |
         set -euo pipefail
+        if [ -z "$SSH_PORT" ]; then
+          SSH_PORT=22
+        fi
         if [ -z "$MIRROR_REMOTE_PATH" ]; then
           echo "ERROR: mirror-remote-path is empty — aborting to avoid deploying to the server root." >&2
           exit 1
