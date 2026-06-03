@@ -45,7 +45,7 @@ Set `mirror_exclude_rx_from` if your regex exclude file is not at the default pa
     environment: production
     steps:
       - name: Deploy to production
-        uses: bsaweb/actions/rsync-deploy@0.4.0
+        uses: bsaweb/actions/rsync-deploy@0.4.1
         with:
           ssh-host: ${{ secrets.SSH_HOST }}
           ssh-user: ${{ secrets.SSH_USER }}
