@@ -174,7 +174,7 @@ jobs:
             !package.json
             !package-lock.json
             !yarn.lock
-            !wp-cli.yml
+            !.env.example
             !phpcs.xml
             !pint.json
             !README.md
